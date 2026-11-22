@@ -1,0 +1,30 @@
+{
+  "name": "roster-iq-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RosterIQ — Smart Roster Management System",
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "typecheck": "npm --prefix web run typecheck",
+    "lint": "npm --prefix web run lint",
+    "test": "npm --prefix web run test",
+    "db:migrate": "npm --prefix web run db:migrate",
+    "db:generate": "npm --prefix web run db:generate",
+    "db:seed": "npm --prefix web run db:seed",
+    "db:reset": "npm --prefix web run db:reset",
+    "db:studio": "npm --prefix web run db:studio",
+    "solver:install": "py -3.12 -m pip install -r solver/requirements.txt",
+    "solver:test": "py -3.12 -m pytest solver/tests",
+    "solver:dev": "py -3.12 -m uvicorn app.main:app --app-dir solver --reload --port 8000"
+  },
+  "keywords": [
+    "roster",
+    "workforce-management",
+    "cp-sat",
+    "nextjs",
+    "or-tools"
+  ],
+  "author": "DATASTRAW Tech Assessment",
+  "license": "MIT"
+}

@@ -10,6 +10,24 @@ jobs:
   web-check:
     name: Web Checks (Lint, Typecheck, Test)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: roster_iq
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/roster_iq
+      DIRECT_URL: postgresql://postgres:postgrespassword@localhost:5432/roster_iq
+      SESSION_SECRET: dev-session-secret-at-least-32-chars-long!
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +43,17 @@ jobs:
           cd web
           npm ci
 
+      - name: Generate Prisma Client
+        run: |
+          cd web
+          npx prisma generate
+
+      - name: Setup Database & Seed
+        run: |
+          cd web
+          npx prisma db push --skip-generate
+          npm run db:seed
+
       - name: Typecheck
         run: |
           cd web
@@ -35,7 +64,7 @@ jobs:
           cd web
           npm run lint
 
-      - name: Vitest Unit Tests
+      - name: Vitest Unit & Integration Tests
         run: |
           cd web
           npm run test

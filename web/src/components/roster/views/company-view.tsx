@@ -62,9 +62,48 @@ export function CompanyView({
   }, [days, cellsByEmpAndDate]);
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs">
+    <div className="space-y-2">
+      {/* Legend & Guide Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="font-semibold text-slate-700">Shift Key:</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-indigo-600 text-white">
+              W
+            </span>
+            <span>Primary Work</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-purple-600 text-white">
+              W
+            </span>
+            <span>Backup / Floater</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-7 h-5 rounded flex items-center justify-center font-bold text-[9px] bg-slate-200 text-slate-600">
+              OFF
+            </span>
+            <span>Weekly Rest Day</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-rose-100 text-rose-800 border border-rose-300">
+              L
+            </span>
+            <span>Approved Leave</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+              H
+            </span>
+            <span>Holiday</span>
+          </span>
+        </div>
+        <span className="text-[11px] text-slate-400 italic">Click any cell to override assignment</span>
+      </div>
+
+      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
           {/* Header Row */}
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
@@ -154,38 +193,39 @@ export function CompanyView({
 
                       // Badge styles based on DayStatus
                       let statusBadge = (
-                        <span className="inline-block w-6 h-6 rounded flex items-center justify-center font-bold text-[11px] bg-slate-100 text-slate-600">
-                          O
+                        <span className="inline-block px-1 h-5 rounded flex items-center justify-center font-bold text-[9px] bg-slate-100 text-slate-500 border border-slate-200/60" title="Weekly Off">
+                          OFF
                         </span>
                       );
 
                       if (cell.status === 'WORK') {
                         statusBadge = (
                           <span
-                            className={`inline-block w-6 h-6 rounded flex items-center justify-center font-bold text-[11px] shadow-2xs ${
+                            className={`inline-block w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] shadow-2xs ${
                               cell.role === 'BACKUP'
                                 ? 'bg-purple-600 text-white'
                                 : 'bg-indigo-600 text-white'
                             }`}
+                            title={cell.role === 'BACKUP' ? `Backup (${cell.brandCode || 'Cross-Brand'})` : `Primary (${cell.brandCode || 'Shift'})`}
                           >
                             W
                           </span>
                         );
                       } else if (cell.status === 'HOLIDAY') {
                         statusBadge = (
-                          <span className="inline-block w-6 h-6 rounded flex items-center justify-center font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <span className="inline-block w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300" title="Holiday">
                             H
                           </span>
                         );
                       } else if (cell.status === 'LEAVE') {
                         statusBadge = (
-                          <span className="inline-block w-6 h-6 rounded flex items-center justify-center font-bold text-[11px] bg-rose-100 text-rose-800 border border-rose-300">
+                          <span className="inline-block w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-rose-100 text-rose-800 border border-rose-300" title="Approved Leave">
                             L
                           </span>
                         );
                       } else if (cell.status === 'COMP_OFF') {
                         statusBadge = (
-                          <span className="inline-block w-6 h-6 rounded flex items-center justify-center font-bold text-[11px] bg-amber-100 text-amber-800 border border-amber-300">
+                          <span className="inline-block w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] bg-amber-100 text-amber-800 border border-amber-300" title="Compensatory Off">
                             C
                           </span>
                         );
@@ -235,6 +275,7 @@ export function CompanyView({
           </tfoot>
         </table>
       </div>
+    </div>
     </div>
   );
 }

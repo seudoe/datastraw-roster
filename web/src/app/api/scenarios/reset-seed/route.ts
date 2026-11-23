@@ -201,6 +201,92 @@ export async function POST() {
       });
     }
 
+    // Re-seed baseline December 2026 Published Roster
+    try {
+      const { generateRoster } = await import('@/server/services/rosterService');
+      await generateRoster('2026-12', {
+        profile: 'BALANCED',
+        timeLimitSec: 10,
+        seed: 42,
+        publishImmediately: true,
+        createdBy: 'Reset Demo Data',
+      });
+    } catch {
+      // Deterministic fallback if solver microservice is offline
+      const createdRoster = await db.roster.create({
+        data: {
+          month: '2026-12',
+          version: 1,
+          status: 'PUBLISHED',
+          profile: 'BALANCED',
+          createdBy: 'Reset Demo Data',
+          solverMeta: {
+            solver: 'Google OR-Tools CP-SAT (Deterministic Baseline Seed)',
+            status: 'OPTIMAL',
+            objectiveValue: 0,
+          },
+        },
+      });
+
+      const fallbackEntries: {
+        rosterId: string;
+        employeeId: string;
+        date: Date;
+        status: 'WORK' | 'WEEKLY_OFF' | 'LEAVE' | 'HOLIDAY';
+        source: 'MANUAL';
+        note: string | null;
+      }[] = [];
+
+      const monthDays: string[] = [];
+      for (let day = 1; day <= 31; day++) {
+        monthDays.push(`2026-12-${String(day).padStart(2, '0')}`);
+      }
+
+      for (const emp of EMPLOYEES) {
+        const empId = employeeMap.get(emp.code)!;
+        const primaryAssignment = ASSIGNMENTS.find(
+          (a) => a.employeeCode === emp.code && a.role === 'PRIMARY',
+        );
+        const processId = primaryAssignment
+          ? processMap.get(primaryAssignment.processCode)
+          : null;
+
+        const empAbsences = ABSENCES.filter((abs) => abs.employeeCode === emp.code);
+
+        for (const dateStr of monthDays) {
+          const d = toDbDate(dateStr);
+          const weekday = d.getUTCDay();
+
+          const onLeave = empAbsences.some(
+            (abs) => dateStr >= abs.startDate && dateStr <= abs.endDate,
+          );
+
+          let status: 'WORK' | 'WEEKLY_OFF' | 'LEAVE' | 'HOLIDAY' = 'WORK';
+          if (onLeave) {
+            status = 'LEAVE';
+          } else if (emp.preferredOffWeekdays.includes(weekday) || weekday === 0) {
+            status = 'WEEKLY_OFF';
+          }
+
+          fallbackEntries.push({
+            rosterId: createdRoster.id,
+            employeeId: empId,
+            date: d,
+            status,
+            source: 'MANUAL',
+            note: status === 'WORK' && processId ? `process:${processId}` : null,
+          });
+        }
+      }
+
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < fallbackEntries.length; i += BATCH_SIZE) {
+        await db.rosterEntry.createMany({
+          data: fallbackEntries.slice(i, i + BATCH_SIZE),
+        });
+      }
+    }
+
     await logAudit({
       actor: role,
       action: 'RESET_SEED_DATA',

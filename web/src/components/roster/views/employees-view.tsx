@@ -172,7 +172,8 @@ export function EmployeesView({
                         }`}
                       >
                         <span
-                          className={`inline-block w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center ${
+                          title={cell.status === 'WEEKLY_OFF' ? 'Weekly Off / Rest Day' : cell.status}
+                          className={`inline-block ${cell.status === 'WEEKLY_OFF' ? 'px-1 h-5' : 'w-5 h-5'} rounded text-[9px] font-bold flex items-center justify-center ${
                             cell.status === 'WORK'
                               ? 'bg-indigo-600 text-white'
                               : cell.status === 'HOLIDAY'
@@ -184,7 +185,7 @@ export function EmployeesView({
                               : 'bg-slate-100 text-slate-500'
                           }`}
                         >
-                          {cell.status === 'WORK' ? 'W' : cell.status === 'WEEKLY_OFF' ? 'O' : cell.status[0]}
+                          {cell.status === 'WORK' ? 'W' : cell.status === 'WEEKLY_OFF' ? 'OFF' : cell.status[0]}
                         </span>
                       </td>
                     );

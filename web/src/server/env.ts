@@ -8,8 +8,9 @@ const envSchema = z.object({
   SOLVER_URL: z.string().url().default('http://localhost:8000'),
   SOLVER_API_KEY: z.string().default('dev-solver-secret-key'),
   SESSION_SECRET: z.string().default('dev-session-secret-at-least-32-chars-long!'),
+  GROQ_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
-  EXPLAIN_MODEL: z.string().default('claude-haiku-5-5'),
+  EXPLAIN_MODEL: z.string().default('llama-3.3-70b-versatile'),
 });
 
 export const env = envSchema.parse({
@@ -19,6 +20,7 @@ export const env = envSchema.parse({
   SOLVER_URL: process.env.SOLVER_URL,
   SOLVER_API_KEY: process.env.SOLVER_API_KEY,
   SESSION_SECRET: process.env.SESSION_SECRET,
+  GROQ_API_KEY: process.env.GROQ_API_KEY,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   EXPLAIN_MODEL: process.env.EXPLAIN_MODEL,
 });

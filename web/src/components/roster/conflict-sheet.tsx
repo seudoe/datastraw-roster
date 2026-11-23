@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckCircle2, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Conflict } from '@/domain/validator/types';
 
@@ -34,6 +34,18 @@ export function ConflictSheet({
   const [ackingId, setAckingId] = useState<string | null>(null);
   const [ackReason, setAckReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [explainingId, setExplainingId] = useState<string | null>(null);
+  const [explanations, setExplanations] = useState<
+    Record<
+      string,
+      {
+        explanation: string;
+        isAiGenerated: boolean;
+        provider: string;
+        model: string;
+      }
+    >
+  >({});
 
   const filteredConflicts = conflicts.filter((c) => {
     if (filter === 'ERRORS') return c.severity === 'ERROR' && !c.acknowledged;
@@ -67,6 +79,34 @@ export function ConflictSheet({
       toast.error((e as Error).message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleExplain = async (conflict: Conflict) => {
+    setExplainingId(conflict.id);
+    try {
+      const res = await fetch('/api/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conflict }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate explanation');
+
+      setExplanations((prev) => ({
+        ...prev,
+        [conflict.id]: {
+          explanation: data.explanation,
+          isAiGenerated: !!data.isAiGenerated,
+          provider: data.provider,
+          model: data.model,
+        },
+      }));
+    } catch (e: unknown) {
+      toast.error((e as Error).message);
+    } finally {
+      setExplainingId(null);
     }
   };
 
@@ -178,6 +218,53 @@ export function ConflictSheet({
                 </div>
 
                 <div className="text-slate-800 leading-relaxed">{c.message}</div>
+
+                {/* AI Explanation Action & Result */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => handleExplain(c)}
+                      disabled={explainingId === c.id}
+                      className="text-[11px] h-6 px-2 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50/80 flex items-center gap-1 font-medium"
+                    >
+                      {explainingId === c.id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                          <span>Analyzing with Groq...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3 text-indigo-600" />
+                          <span>{explanations[c.id] ? 'Re-explain with AI' : 'Explain with AI (Groq)'}</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {explanations[c.id] && (
+                    <div className="p-2.5 rounded-md bg-indigo-50/90 border border-indigo-200/80 text-slate-800 text-[11px] space-y-1.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-indigo-950 flex items-center gap-1 text-[11px]">
+                          <Sparkles className="h-3 w-3 text-indigo-600" />
+                          AI Operational Diagnosis:
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-mono px-1.5 py-0 bg-white border-indigo-200 text-indigo-700"
+                        >
+                          {explanations[c.id].isAiGenerated
+                            ? `⚡ ${explanations[c.id].provider} (${explanations[c.id].model})`
+                            : `🛡️ ${explanations[c.id].provider}`}
+                        </Badge>
+                      </div>
+                      <p className="leading-relaxed text-slate-700">
+                        {explanations[c.id].explanation}
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 {c.acknowledged && c.ackReason && (
                   <div className="text-[11px] text-emerald-800 bg-white/70 p-2 rounded border border-emerald-100">

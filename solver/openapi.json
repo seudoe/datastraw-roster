@@ -1,0 +1,855 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RosterIQ CP-SAT Solver API",
+    "description": "Stateless optimization service powering RosterIQ shift scheduling and minimal-disruption repair.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health Check",
+        "description": "Return health status of the solver microservice.",
+        "operationId": "health_check_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/solve": {
+      "post": {
+        "tags": [
+          "Solver"
+        ],
+        "summary": "Solve Roster",
+        "description": "Solve monthly roster optimization problem with CP-SAT.\nGuarantees feasibility via soft coverage slack with explicit conflict accounting.",
+        "operationId": "solve_roster_v1_solve_post",
+        "parameters": [
+          {
+            "name": "x-solver-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Solver-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/repair": {
+      "post": {
+        "tags": [
+          "Solver"
+        ],
+        "summary": "Repair Roster",
+        "description": "Perform minimal-disruption repair on an existing published roster.\nPenalizes changes away from baseline schedule while resolving newly injected disruptions.",
+        "operationId": "repair_roster_v1_repair_post",
+        "parameters": [
+          {
+            "name": "x-solver-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Solver-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssignmentRole": {
+        "type": "string",
+        "enum": [
+          "PRIMARY",
+          "BACKUP",
+          "TEMPORARY"
+        ],
+        "title": "AssignmentRole"
+      },
+      "AssignmentSpec": {
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "title": "Employeeid"
+          },
+          "processId": {
+            "type": "string",
+            "title": "Processid"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AssignmentRole"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "processId",
+          "role"
+        ],
+        "title": "AssignmentSpec"
+      },
+      "BackupDutyOut": {
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "title": "Employeeid"
+          },
+          "brandId": {
+            "type": "string",
+            "title": "Brandid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "default": "STANDBY"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "brandId",
+          "date"
+        ],
+        "title": "BackupDutyOut"
+      },
+      "CoverageGapOut": {
+        "properties": {
+          "processId": {
+            "type": "string",
+            "title": "Processid"
+          },
+          "brandId": {
+            "type": "string",
+            "title": "Brandid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "requiredStaff": {
+            "type": "integer",
+            "title": "Requiredstaff"
+          },
+          "actualStaff": {
+            "type": "integer",
+            "title": "Actualstaff"
+          },
+          "deficit": {
+            "type": "integer",
+            "title": "Deficit"
+          },
+          "brandPriority": {
+            "type": "integer",
+            "title": "Brandpriority"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processId",
+          "brandId",
+          "date",
+          "requiredStaff",
+          "actualStaff",
+          "deficit",
+          "brandPriority"
+        ],
+        "title": "CoverageGapOut"
+      },
+      "DayStatus": {
+        "type": "string",
+        "enum": [
+          "WORK",
+          "WEEKLY_OFF",
+          "HOLIDAY",
+          "LEAVE",
+          "COMP_OFF"
+        ],
+        "title": "DayStatus"
+      },
+      "EmployeeSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "weeklyOffsTarget": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Weeklyoffstarget",
+            "default": 4
+          },
+          "preferredOffWeekdays": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Preferredoffweekdays"
+          },
+          "maxConsecutiveWorkDays": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Maxconsecutiveworkdays",
+            "default": 6
+          },
+          "maxBackupBrandsPerDay": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Maxbackupbrandsperday",
+            "default": 2
+          },
+          "primaryProcessIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Primaryprocessids"
+          },
+          "backupProcessIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Backupprocessids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code"
+        ],
+        "title": "EmployeeSpec"
+      },
+      "ExistingCell": {
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "title": "Employeeid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DayStatus"
+          },
+          "processId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "date",
+          "status"
+        ],
+        "title": "ExistingCell"
+      },
+      "ForcedSpec": {
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "title": "Employeeid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DayStatus"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": "Forced state"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "date",
+          "status"
+        ],
+        "title": "ForcedSpec"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "solver": {
+            "type": "string",
+            "title": "Solver"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "version",
+          "solver"
+        ],
+        "title": "HealthResponse"
+      },
+      "LockSpec": {
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "title": "Employeeid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DayStatus"
+          },
+          "processId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "date",
+          "status"
+        ],
+        "title": "LockSpec"
+      },
+      "MetricsOut": {
+        "properties": {
+          "coverageRate": {
+            "type": "number",
+            "title": "Coveragerate",
+            "description": "Percentage 0.0 - 100.0 of required staffing fulfilled"
+          },
+          "totalGaps": {
+            "type": "integer",
+            "title": "Totalgaps"
+          },
+          "totalBackupActivations": {
+            "type": "integer",
+            "title": "Totalbackupactivations"
+          },
+          "preferenceSatisfactionRate": {
+            "type": "number",
+            "title": "Preferencesatisfactionrate",
+            "description": "Percentage 0.0 - 100.0"
+          },
+          "maxConsecutiveDaysObserved": {
+            "type": "integer",
+            "title": "Maxconsecutivedaysobserved"
+          },
+          "weekendSpreadMaxDelta": {
+            "type": "integer",
+            "title": "Weekendspreadmaxdelta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "coverageRate",
+          "totalGaps",
+          "totalBackupActivations",
+          "preferenceSatisfactionRate",
+          "maxConsecutiveDaysObserved",
+          "weekendSpreadMaxDelta"
+        ],
+        "title": "MetricsOut"
+      },
+      "ProcessSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "brandId": {
+            "type": "string",
+            "title": "Brandid"
+          },
+          "brandPriority": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Brandpriority",
+            "default": 2
+          },
+          "demand": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Demand"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "brandId"
+        ],
+        "title": "ProcessSpec"
+      },
+      "RepairRequest": {
+        "properties": {
+          "baseProblem": {
+            "$ref": "#/components/schemas/SolveRequest"
+          },
+          "currentEntries": {
+            "items": {
+              "$ref": "#/components/schemas/ExistingCell"
+            },
+            "type": "array",
+            "title": "Currententries"
+          },
+          "disruptionWeight": {
+            "type": "integer",
+            "title": "Disruptionweight",
+            "description": "Penalty for flipping a cell away from baseline",
+            "default": 5000
+          }
+        },
+        "type": "object",
+        "required": [
+          "baseProblem",
+          "currentEntries"
+        ],
+        "title": "RepairRequest"
+      },
+      "RosterEntryOut": {
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "title": "Employeeid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DayStatus"
+          },
+          "processId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processid"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssignmentRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isOverride": {
+            "type": "boolean",
+            "title": "Isoverride",
+            "default": false
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "employeeId",
+          "date",
+          "status"
+        ],
+        "title": "RosterEntryOut"
+      },
+      "SolveRequest": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month",
+            "description": "YYYY-MM format, e.g. 2026-12"
+          },
+          "days": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Days",
+            "description": "List of ISO date strings YYYY-MM-DD"
+          },
+          "employees": {
+            "items": {
+              "$ref": "#/components/schemas/EmployeeSpec"
+            },
+            "type": "array",
+            "title": "Employees"
+          },
+          "processes": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessSpec"
+            },
+            "type": "array",
+            "title": "Processes"
+          },
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/AssignmentSpec"
+            },
+            "type": "array",
+            "title": "Assignments"
+          },
+          "forced": {
+            "items": {
+              "$ref": "#/components/schemas/ForcedSpec"
+            },
+            "type": "array",
+            "title": "Forced"
+          },
+          "locks": {
+            "items": {
+              "$ref": "#/components/schemas/LockSpec"
+            },
+            "type": "array",
+            "title": "Locks"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/WeightProfile",
+            "default": "BALANCED"
+          },
+          "timeLimitSec": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Timelimitsec",
+            "default": 20
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed",
+            "default": 42
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "days",
+          "employees",
+          "processes",
+          "assignments"
+        ],
+        "title": "SolveRequest"
+      },
+      "SolveResponse": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/SolverStatus"
+          },
+          "objectiveValue": {
+            "type": "number",
+            "title": "Objectivevalue"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/RosterEntryOut"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "backupDuties": {
+            "items": {
+              "$ref": "#/components/schemas/BackupDutyOut"
+            },
+            "type": "array",
+            "title": "Backupduties"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageGapOut"
+            },
+            "type": "array",
+            "title": "Gaps"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/MetricsOut"
+          },
+          "solverMeta": {
+            "$ref": "#/components/schemas/SolverMetaOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "objectiveValue",
+          "entries",
+          "backupDuties",
+          "gaps",
+          "metrics",
+          "solverMeta"
+        ],
+        "title": "SolveResponse"
+      },
+      "SolverMetaOut": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/SolverStatus"
+          },
+          "objectiveValue": {
+            "type": "number",
+            "title": "Objectivevalue"
+          },
+          "solveTimeSec": {
+            "type": "number",
+            "title": "Solvetimesec"
+          },
+          "numVariables": {
+            "type": "integer",
+            "title": "Numvariables"
+          },
+          "numConstraints": {
+            "type": "integer",
+            "title": "Numconstraints"
+          },
+          "deterministicSeed": {
+            "type": "integer",
+            "title": "Deterministicseed"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/WeightProfile"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "objectiveValue",
+          "solveTimeSec",
+          "numVariables",
+          "numConstraints",
+          "deterministicSeed",
+          "profile"
+        ],
+        "title": "SolverMetaOut"
+      },
+      "SolverStatus": {
+        "type": "string",
+        "enum": [
+          "OPTIMAL",
+          "FEASIBLE",
+          "INFEASIBLE",
+          "UNKNOWN"
+        ],
+        "title": "SolverStatus"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WeightProfile": {
+        "type": "string",
+        "enum": [
+          "BALANCED",
+          "COVERAGE_FIRST",
+          "FAIRNESS_FIRST",
+          "PREFERENCE_FIRST"
+        ],
+        "title": "WeightProfile"
+      }
+    }
+  }
+}

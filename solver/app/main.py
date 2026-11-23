@@ -3,16 +3,33 @@
 Provides stateless endpoints for roster generation and minimal-disruption repair.
 """
 import os
+import sys
+from pathlib import Path
 from typing import Optional
+
+# Ensure current package, solver directory, and repo root are on sys.path
+_this_dir = Path(__file__).resolve().parent
+for _p in (_this_dir, _this_dir.parent, _this_dir.parent.parent):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel
 
 try:
     from .model import build_and_solve_cpsat
     from .schemas import RepairRequest, SolveRequest, SolveResponse
-except ImportError:
-    from solver.app.model import build_and_solve_cpsat
-    from solver.app.schemas import RepairRequest, SolveRequest, SolveResponse
+except (ImportError, ValueError):
+    try:
+        from app.model import build_and_solve_cpsat
+        from app.schemas import RepairRequest, SolveRequest, SolveResponse
+    except (ImportError, ValueError):
+        try:
+            from solver.app.model import build_and_solve_cpsat
+            from solver.app.schemas import RepairRequest, SolveRequest, SolveResponse
+        except (ImportError, ValueError):
+            from model import build_and_solve_cpsat
+            from schemas import RepairRequest, SolveRequest, SolveResponse
 
 app = FastAPI(
     title="RosterIQ CP-SAT Solver API",
@@ -84,3 +101,12 @@ def repair_roster(
         current_entries=request.currentEntries,
         disruption_weight=request.disruptionWeight,
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", "8000"))
+    host = os.getenv("HOST", "0.0.0.0")
+    print(f"🚀 Starting RosterIQ CP-SAT Solver microservice on http://{host}:{port} ...")
+    uvicorn.run(app, host=host, port=port)
+

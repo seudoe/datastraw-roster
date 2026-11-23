@@ -3,9 +3,18 @@
 Formulates constraints and multi-objective optimization using Google OR-Tools CP-SAT.
 Guarantees feasibility via soft coverage slack with explicit conflict accounting.
 """
+import os
+import sys
+from pathlib import Path
 from datetime import date
 import time
 from typing import Dict, List, Optional, Set, Tuple
+
+# Ensure current package, solver directory, and repo root are on sys.path
+_this_dir = Path(__file__).resolve().parent
+for _p in (_this_dir, _this_dir.parent, _this_dir.parent.parent):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from ortools.sat.python import cp_model
 
@@ -24,21 +33,53 @@ try:
         SolveResponse,
     )
     from .weights import get_weights
-except ImportError:
-    from solver.app.schemas import (
-        AssignmentRole,
-        BackupDutyOut,
-        CoverageGapOut,
-        DayStatus,
-        MetricsOut,
-        RepairRequest,
-        RosterEntryOut,
-        SolverMetaOut,
-        SolverStatus,
-        SolveRequest,
-        SolveResponse,
-    )
-    from solver.app.weights import get_weights
+except (ImportError, ValueError):
+    try:
+        from app.schemas import (
+            AssignmentRole,
+            BackupDutyOut,
+            CoverageGapOut,
+            DayStatus,
+            MetricsOut,
+            RepairRequest,
+            RosterEntryOut,
+            SolverMetaOut,
+            SolverStatus,
+            SolveRequest,
+            SolveResponse,
+        )
+        from app.weights import get_weights
+    except (ImportError, ValueError):
+        try:
+            from solver.app.schemas import (
+                AssignmentRole,
+                BackupDutyOut,
+                CoverageGapOut,
+                DayStatus,
+                MetricsOut,
+                RepairRequest,
+                RosterEntryOut,
+                SolverMetaOut,
+                SolverStatus,
+                SolveRequest,
+                SolveResponse,
+            )
+            from solver.app.weights import get_weights
+        except (ImportError, ValueError):
+            from schemas import (
+                AssignmentRole,
+                BackupDutyOut,
+                CoverageGapOut,
+                DayStatus,
+                MetricsOut,
+                RepairRequest,
+                RosterEntryOut,
+                SolverMetaOut,
+                SolverStatus,
+                SolveRequest,
+                SolveResponse,
+            )
+            from weights import get_weights
 
 
 def get_weekday_from_iso(date_str: str) -> int:

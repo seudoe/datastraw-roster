@@ -4,10 +4,25 @@ Translates high-level business modes (BALANCED, COVERAGE_FIRST, etc.)
 into integer weights for the CP-SAT objective function.
 """
 from dataclasses import dataclass
+import sys
+from pathlib import Path
+
+# Ensure current package, solver directory, and repo root are on sys.path
+_this_dir = Path(__file__).resolve().parent
+for _p in (_this_dir, _this_dir.parent, _this_dir.parent.parent):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 try:
     from .schemas import WeightProfile
-except ImportError:
-    from solver.app.schemas import WeightProfile
+except (ImportError, ValueError):
+    try:
+        from app.schemas import WeightProfile
+    except (ImportError, ValueError):
+        try:
+            from solver.app.schemas import WeightProfile
+        except (ImportError, ValueError):
+            from schemas import WeightProfile
 
 
 @dataclass(frozen=True)

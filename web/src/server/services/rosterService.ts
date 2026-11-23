@@ -5,6 +5,7 @@
 import { db } from '@/server/db';
 import { solverClient, type SolveResponseDto } from '@/server/solverClient';
 import { buildProblem, type BuildProblemOptions } from '@/domain/buildProblem';
+import { validateRoster } from '@/domain/validator/validateRoster';
 import { logAudit } from '@/server/audit';
 import type {
   DomainSnapshot,
@@ -344,6 +345,7 @@ export async function listRosterVersions(month: string) {
       version: true,
       status: true,
       profile: true,
+      parentId: true,
       createdBy: true,
       createdAt: true,
       solverMeta: true,
@@ -364,10 +366,53 @@ export async function listRosterVersions(month: string) {
 export async function publishRoster(rosterId: string, publishedBy: string) {
   const targetRoster = await db.roster.findUnique({
     where: { id: rosterId },
+    include: {
+      entries: true,
+      backupDuties: true,
+      conflictAcks: true,
+    },
   });
 
   if (!targetRoster) {
     throw new Error('Roster not found');
+  }
+
+  // Publish Gate: Check for unacknowledged ERROR conflicts
+  const snapshot = await loadDomainSnapshot();
+  const validationEntries = targetRoster.entries.map((e) => ({
+    employeeId: e.employeeId,
+    date: e.date.toISOString().split('T')[0],
+    status: e.status,
+    processId: e.note?.startsWith('process:') ? e.note.replace('process:', '') : null,
+    locked: e.locked,
+  }));
+  const validationBackupDuties = targetRoster.backupDuties.map((b) => ({
+    employeeId: b.employeeId,
+    processId: b.processId,
+    date: b.date.toISOString().split('T')[0],
+  }));
+  const acks = targetRoster.conflictAcks.map((a) => ({
+    fingerprint: a.fingerprint,
+    reason: a.reason,
+    ackBy: a.ackBy,
+  }));
+
+  const validation = validateRoster(
+    targetRoster.month,
+    validationEntries,
+    validationBackupDuties,
+    snapshot,
+    acks,
+  );
+
+  const unackedErrors = validation.conflicts.filter(
+    (c) => c.severity === 'ERROR' && !c.acknowledged,
+  );
+
+  if (unackedErrors.length > 0) {
+    throw new Error(
+      `Cannot publish roster with ${unackedErrors.length} unacknowledged ERROR conflict(s). Please review and acknowledge or fix errors before publishing.`,
+    );
   }
 
   const updatedRoster = await db.$transaction(async (tx) => {
@@ -379,6 +424,15 @@ export async function publishRoster(rosterId: string, publishedBy: string) {
         id: { not: targetRoster.id },
       },
       data: { status: 'SUPERSEDED' },
+    });
+
+    // Create Notification
+    await tx.notification.create({
+      data: {
+        rosterId: targetRoster.id,
+        audience: 'ALL',
+        message: `Official Roster for ${targetRoster.month} (v${targetRoster.version}) has been published by ${publishedBy || 'Ops Manager'}.`,
+      },
     });
 
     // Mark target roster as published
@@ -396,6 +450,7 @@ export async function publishRoster(rosterId: string, publishedBy: string) {
     payload: {
       month: updatedRoster.month,
       version: updatedRoster.version,
+      publishedBy,
     },
   });
 

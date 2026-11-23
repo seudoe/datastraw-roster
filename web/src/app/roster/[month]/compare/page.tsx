@@ -1,41 +1,70 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { GitCompare } from 'lucide-react';
+import { notFound } from 'next/navigation';
+import { db } from '@/server/db';
+import { CompareViewer, type VersionCompareItem } from '@/components/roster/compare-viewer';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ComparePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ month: string }>;
+  searchParams?: Promise<{ v1?: string; v2?: string }>;
 }) {
   const { month } = await params;
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    notFound();
+  }
+
+  const sp = searchParams ? await searchParams : {};
+  const v1 = sp.v1 ? parseInt(sp.v1, 10) : undefined;
+  const v2 = sp.v2 ? parseInt(sp.v2, 10) : undefined;
+
+  const rosterRecords = await db.roster.findMany({
+    where: { month },
+    orderBy: { version: 'desc' },
+    include: {
+      entries: {
+        include: {
+          employee: {
+            select: { id: true, code: true, name: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (rosterRecords.length === 0) {
+    notFound();
+  }
+
+  const versionsPayload: VersionCompareItem[] = rosterRecords.map((r) => ({
+    id: r.id,
+    version: r.version,
+    status: r.status,
+    profile: r.profile,
+    createdAt: r.createdAt.toISOString(),
+    createdBy: r.createdBy,
+    solverMeta: r.solverMeta,
+    entries: r.entries.map((e) => ({
+      employeeId: e.employeeId,
+      employeeCode: e.employee.code,
+      employeeName: e.employee.name,
+      date: e.date.toISOString().split('T')[0],
+      status: e.status,
+      processId: e.note?.startsWith('process:') ? e.note.replace('process:', '') : null,
+    })),
+  }));
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-between">
-        <div>
-          <Badge className="bg-amber-600 text-white mb-1">TODO(Stage 13)</Badge>
-          <div className="font-semibold text-sm text-amber-900">
-            Optimization Plan Comparison ({month})
-          </div>
-          <div className="text-xs text-amber-700">
-            Multi-profile plan comparison (BALANCED vs FAIRNESS vs COVERAGE) delivered in Stage 13.
-          </div>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GitCompare className="h-5 w-5 text-indigo-600" />
-            Plan Comparison
-          </CardTitle>
-          <CardDescription>Side-by-side metric comparison and candidate promotion.</CardDescription>
-        </CardHeader>
-        <CardContent className="h-64 flex items-center justify-center border-2 border-dashed rounded-lg text-slate-400 text-sm">
-          Plan comparison table and diffs render here.
-        </CardContent>
-      </Card>
+    <div className="max-w-[100rem] mx-auto px-4 py-6">
+      <CompareViewer
+        month={month}
+        versions={versionsPayload}
+        defaultV1={v1}
+        defaultV2={v2}
+      />
     </div>
   );
 }

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: roster-iq-solver
+    runtime: docker
+    dockerfilePath: ./solver/Dockerfile
+    dockerContext: ./solver
+    region: oregon
+    plan: free
+    healthCheckPath: /v1/health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: SOLVER_API_KEY
+        sync: false

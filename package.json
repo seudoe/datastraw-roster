@@ -17,6 +17,7 @@
     "solver:install": "py -3.12 -m pip install -r solver/requirements.txt",
     "solver:test": "py -3.12 -m pytest solver/tests",
     "solver:dev": "py -3.12 -m uvicorn app.main:app --app-dir solver --reload --port 8000",
+    "warmup": "npx --prefix web tsx scripts/warmup.ts",
     "gen:solver-types": "py -3.12 -c \"import json; from solver.app.main import app; open('solver/openapi.json', 'w', encoding='utf-8').write(json.dumps(app.openapi(), indent=2))\" && npx openapi-typescript solver/openapi.json -o web/src/types/solver.generated.ts"
   },
   "keywords": [

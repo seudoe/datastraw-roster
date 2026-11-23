@@ -1,0 +1,31 @@
+name: Warm-up & Keep-Alive
+
+on:
+  schedule:
+    # Run every 14 minutes to prevent free-tier instances (Render) from sleeping
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  warmup:
+    name: Ping Services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          npm install tsx dotenv --no-save
+
+      - name: Run Warm-up Ping
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          SOLVER_URL: ${{ secrets.SOLVER_URL }}
+          SOLVER_API_KEY: ${{ secrets.SOLVER_API_KEY }}
+        run: |
+          npx tsx scripts/warmup.ts

@@ -227,6 +227,25 @@ async function main() {
     });
   }
 
+  // 14. Generate & Publish Baseline December 2026 Roster
+  console.log('📋 Generating baseline published roster for December 2026 via CP-SAT...');
+  try {
+    const { generateRoster } = await import('../../src/server/services/rosterService');
+    const { roster } = await generateRoster('2026-12', {
+      profile: 'BALANCED',
+      timeLimitSec: 10,
+      seed: 42,
+      publishImmediately: true,
+      createdBy: 'System Seeder',
+    });
+    console.log(`✅ Baseline published roster created: v${roster.version} (${roster.id})`);
+  } catch (err) {
+    console.warn(
+      '⚠️ Notice: Could not generate initial roster via solver:',
+      (err as Error).message,
+    );
+  }
+
   console.log('✅ Deterministic seed completed successfully!');
 }
 

@@ -144,6 +144,16 @@ async function verify() {
   const scenarioCount = await db.scenario.count();
   assert(scenarioCount === 4, `Must have exactly 4 seeded demo scenarios (found: ${scenarioCount})`);
 
+  // 10. Baseline Published Roster for December 2026
+  const decRoster = await db.roster.findFirst({
+    where: { month: '2026-12', status: 'PUBLISHED' },
+    include: { _count: { select: { entries: true } } },
+  });
+  assert(
+    decRoster !== null && decRoster._count.entries >= 32 * 31,
+    `Must have a published December 2026 roster with >= 992 entries (found: ${decRoster?._count.entries ?? 0})`,
+  );
+
   // Final Verdict
   console.log('\n----------------------------------------');
   if (failed) {

@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ import {
   Settings,
   FileText,
   LayoutDashboard,
+  Loader2,
 } from 'lucide-react';
 
 interface NavItem {
@@ -42,11 +44,62 @@ const setupNav: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  // Clear pending state once pathname matches
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   const isLinkActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
+
+  const renderNavLinks = (items: NavItem[]) => (
+    <nav className="space-y-1">
+      {items.map((item) => {
+        const Icon = item.icon;
+        const active = isLinkActive(item.href);
+        const isPending = pendingHref === item.href;
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={() => {
+              if (pathname !== item.href) {
+                setPendingHref(item.href);
+              }
+            }}
+            className={cn(
+              'flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 relative group',
+              active
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : isPending
+                ? 'bg-indigo-900/60 text-white ring-1 ring-indigo-400/50'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white',
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <Icon
+                className={cn(
+                  'h-4 w-4 transition-transform group-hover:scale-110',
+                  active || isPending ? 'text-white' : 'text-slate-400',
+                )}
+              />
+              <span>{item.title}</span>
+            </div>
+
+            {/* Instant loading feedback */}
+            {isPending && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-300 ml-auto" />
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 
   return (
     <aside className="w-64 bg-slate-900 text-slate-200 border-r border-slate-800 flex flex-col shrink-0 min-h-screen">
@@ -70,27 +123,7 @@ export function Sidebar() {
           <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
             Operations
           </div>
-          <nav className="space-y-1">
-            {mainNav.map((item) => {
-              const Icon = item.icon;
-              const active = isLinkActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    active
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white',
-                  )}
-                >
-                  <Icon className={cn('h-4 w-4', active ? 'text-white' : 'text-slate-400')} />
-                  {item.title}
-                </Link>
-              );
-            })}
-          </nav>
+          {renderNavLinks(mainNav)}
         </div>
 
         {/* Setup & Configuration */}
@@ -98,27 +131,7 @@ export function Sidebar() {
           <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
             Setup &amp; Config
           </div>
-          <nav className="space-y-1">
-            {setupNav.map((item) => {
-              const Icon = item.icon;
-              const active = isLinkActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    active
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white',
-                  )}
-                >
-                  <Icon className={cn('h-4 w-4', active ? 'text-white' : 'text-slate-400')} />
-                  {item.title}
-                </Link>
-              );
-            })}
-          </nav>
+          {renderNavLinks(setupNav)}
         </div>
       </div>
 

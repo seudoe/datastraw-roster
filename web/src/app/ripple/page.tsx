@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { db } from '@/server/db';
 import { getCurrentRole } from '@/server/auth';
 import { loadDomainSnapshot, getRoster } from '@/server/services/rosterService';
@@ -18,18 +18,20 @@ export default async function RipplePage() {
 
   return (
     <div className="max-w-[100rem] mx-auto px-4 py-6">
-      <RippleSimulator
-        month={month}
-        rosterId={roster?.id || ''}
-        rosterVersion={roster?.version || 1}
-        snapshot={snapshot}
-        scenarios={scenarios.map((s) => ({
-          id: s.id,
-          name: s.name,
-          changeSet: s.changeSet,
-        }))}
-        userRole={role}
-      />
+      <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading Ripple Simulator...</div>}>
+        <RippleSimulator
+          month={month}
+          rosterId={roster?.id || ''}
+          rosterVersion={roster?.version || 1}
+          snapshot={snapshot}
+          scenarios={scenarios.map((s) => ({
+            id: s.id,
+            name: s.name,
+            changeSet: s.changeSet,
+          }))}
+          userRole={role}
+        />
+      </Suspense>
     </div>
   );
 }

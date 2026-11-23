@@ -1,37 +1,60 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Clock } from 'lucide-react';
+import React, { Suspense } from 'react';
+import { db } from '@/server/db';
+import { getCurrentRole } from '@/server/auth';
+import { AbsenceManager } from '@/components/absences/absence-manager';
 
-export default function AbsencesPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AbsencesPage() {
+  const month = '2026-12';
+  const role = await getCurrentRole();
+
+  const [absences, employees] = await Promise.all([
+    db.absence.findMany({
+      include: {
+        employee: {
+          include: { pod: true },
+        },
+      },
+      orderBy: { startDate: 'desc' },
+    }),
+    db.employee.findMany({
+      where: { active: true },
+      include: { pod: true },
+      orderBy: { code: 'asc' },
+    }),
+  ]);
+
+  const absenceItems = absences.map((a) => ({
+    id: a.id,
+    employeeId: a.employeeId,
+    employeeCode: a.employee.code,
+    employeeName: a.employee.name,
+    podName: a.employee.pod?.name || 'Unassigned',
+    podId: a.employee.podId,
+    type: a.type,
+    startDate: a.startDate.toISOString().split('T')[0],
+    endDate: a.endDate.toISOString().split('T')[0],
+    status: a.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+    reason: a.reason,
+    createdAt: a.createdAt.toISOString(),
+  }));
+
+  const employeeOptions = employees.map((e) => ({
+    id: e.id,
+    code: e.code,
+    name: e.name,
+    podName: e.pod?.name || 'Unassigned',
+  }));
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-between">
-        <div>
-          <Badge className="bg-amber-600 text-white mb-1">TODO(Stage 10)</Badge>
-          <div className="font-semibold text-sm text-amber-900">
-            Absence Management &amp; Safe-to-Approve Calendar
-          </div>
-          <div className="text-xs text-amber-700">
-            Pre-approval leave impact analysis (green/amber/red days) delivered in Stage 10.
-          </div>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-indigo-600" />
-            Leave &amp; Comp-Off Management
-          </CardTitle>
-          <CardDescription>
-            Safe-to-Approve calendar and leave request workflows.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-64 flex items-center justify-center border-2 border-dashed rounded-lg text-slate-400 text-sm">
-          Absence request table and Safe-to-Approve Calendar preview render here.
-        </CardContent>
-      </Card>
-    </div>
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading Absence Intelligence...</div>}>
+      <AbsenceManager
+        initialAbsences={absenceItems}
+        employees={employeeOptions}
+        month={month}
+        userRole={role}
+      />
+    </Suspense>
   );
 }

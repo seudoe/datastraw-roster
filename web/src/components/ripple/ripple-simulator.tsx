@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -147,12 +148,50 @@ export function RippleSimulator({
     }
   };
 
-  // Run on initial load
+  const searchParams = useSearchParams();
+
+  // Run on initial load and respond to URL parameters
   useEffect(() => {
-    if (selectedEmpId) {
+    const codeParam = searchParams.get('employeeCode');
+    const idParam = searchParams.get('employeeId');
+    const startParam = searchParams.get('startDate');
+    const endParam = searchParams.get('endDate');
+    const typeParam = searchParams.get('absenceType');
+
+    let emp = null;
+    if (codeParam) {
+      emp = snapshot.employees.find((e) => e.code.toLowerCase() === codeParam.toLowerCase());
+    } else if (idParam) {
+      emp = snapshot.employees.find((e) => e.id === idParam);
+    }
+
+    if (emp) setSelectedEmpId(emp.id);
+    if (startParam) setStartDate(startParam);
+    if (endParam) setEndDate(endParam);
+    if (typeParam && ['PLANNED_LEAVE', 'SICK', 'COMP_OFF'].includes(typeParam)) {
+      setAbsenceType(typeParam as any);
+    }
+
+    if (emp || startParam || endParam) {
+      const activeEmpId = emp ? emp.id : selectedEmpId;
+      const activeStart = startParam || startDate;
+      const activeEnd = endParam || endDate;
+      const activeType = (typeParam as any) || absenceType;
+
+      handleSimulate({
+        type: 'LEAVE_REQUEST',
+        payload: {
+          employeeId: activeEmpId,
+          startDate: activeStart,
+          endDate: activeEnd,
+          absenceType: activeType,
+          reason: 'Guided demo scenario evaluation',
+        },
+      });
+    } else if (selectedEmpId) {
       handleSimulate();
     }
-  }, []);
+  }, [searchParams]);
 
   // Quick load demo scenario
   const handleLoadScenario = (sc: DemoScenario) => {

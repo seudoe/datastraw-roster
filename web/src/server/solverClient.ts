@@ -60,8 +60,8 @@ export interface SolveResponseDto {
   };
 }
 
-const SOLVER_URL = process.env.SOLVER_URL || 'http://localhost:8000';
-const SOLVER_API_KEY = process.env.SOLVER_API_KEY || 'dev-solver-secret-key';
+const SOLVER_URL = env.SOLVER_URL || 'http://localhost:8000';
+const SOLVER_API_KEY = env.SOLVER_API_KEY || 'dev-solver-secret-key';
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 

@@ -1,7 +1,12 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Calendar } from 'lucide-react';
+import { notFound } from 'next/navigation';
+import { getCurrentRole } from '@/server/auth';
+import { loadDomainSnapshot, getRoster, listRosterVersions } from '@/server/services/rosterService';
+import { validateRoster } from '@/domain/validator/validateRoster';
+import { RosterGrid, type RosterDataPayload } from '@/components/roster/roster-grid';
+import type { Conflict, RosterEntryValidationInput } from '@/domain/validator/types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function RosterMonthPage({
   params,
@@ -9,35 +14,94 @@ export default async function RosterMonthPage({
   params: Promise<{ month: string }>;
 }) {
   const { month } = await params;
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    notFound();
+  }
+
+  const role = await getCurrentRole();
+  const snapshot = await loadDomainSnapshot();
+  const rosterRecord = await getRoster(month);
+  const allVersions = await listRosterVersions(month);
+
+  let initialConflicts: Conflict[] = [];
+  let rosterData: RosterDataPayload | null = null;
+
+  if (rosterRecord) {
+    const validationEntries: RosterEntryValidationInput[] = rosterRecord.entries.map((e) => ({
+      employeeId: e.employeeId,
+      date: e.date.toISOString().split('T')[0],
+      status: e.status,
+      processId: e.note?.startsWith('process:') ? e.note.replace('process:', '') : null,
+      locked: e.locked,
+    }));
+
+    const validationBackupDuties = rosterRecord.backupDuties.map((b) => ({
+      employeeId: b.employeeId,
+      processId: b.processId,
+      date: b.date.toISOString().split('T')[0],
+    }));
+
+    const acks = rosterRecord.conflictAcks.map((a) => ({
+      fingerprint: a.fingerprint,
+      reason: a.reason,
+      ackBy: a.ackBy,
+    }));
+
+    const validationResult = validateRoster(
+      month,
+      validationEntries,
+      validationBackupDuties,
+      snapshot,
+      acks,
+    );
+
+    initialConflicts = validationResult.conflicts;
+
+    rosterData = {
+      id: rosterRecord.id,
+      month: rosterRecord.month,
+      version: rosterRecord.version,
+      status: rosterRecord.status,
+      profile: rosterRecord.profile,
+      createdBy: rosterRecord.createdBy,
+      createdAt: rosterRecord.createdAt.toISOString(),
+      entries: rosterRecord.entries.map((e) => ({
+        employeeId: e.employeeId,
+        date: e.date.toISOString().split('T')[0],
+        status: e.status,
+        locked: e.locked,
+        source: e.source,
+        note: e.note,
+      })),
+      backupDuties: rosterRecord.backupDuties.map((b) => ({
+        employeeId: b.employeeId,
+        processId: b.processId,
+        date: b.date.toISOString().split('T')[0],
+      })),
+      conflictAcks: rosterRecord.conflictAcks.map((a) => ({
+        fingerprint: a.fingerprint,
+        reason: a.reason,
+        ackBy: a.ackBy,
+      })),
+    };
+  }
+
+  const versionsPayload = allVersions.map((v) => ({
+    version: v.version,
+    status: v.status,
+    createdAt: v.createdAt.toISOString(),
+  }));
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-between">
-        <div>
-          <Badge className="bg-amber-600 text-white mb-1">TODO(Stage 7–9)</Badge>
-          <div className="font-semibold text-sm text-amber-900">
-            Monthly Roster Grid Workspace ({month})
-          </div>
-          <div className="text-xs text-amber-700">
-            Primary 5-view roster grid (Company, Pods, Brands, Processes, Employees) will be delivered in Stages 7–9.
-          </div>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-indigo-600" />
-            Monthly Roster Grid ({month})
-          </CardTitle>
-          <CardDescription>
-            Scheduled for integration once CP-SAT solver generation orchestration is established in Stage 7.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-96 flex items-center justify-center border-2 border-dashed rounded-lg text-slate-400 text-sm">
-          Roster interactive matrix, cell editing, conflict chips, and live validation will render here.
-        </CardContent>
-      </Card>
+    <div className="max-w-[100rem] mx-auto px-2 sm:px-4 py-4">
+      <RosterGrid
+        month={month}
+        initialRoster={rosterData}
+        initialVersions={versionsPayload}
+        initialConflicts={initialConflicts}
+        snapshot={snapshot}
+        userRole={role}
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
  * Detects structurally uncoverable brands, single points of failure (SPOF),
  * and mathematically guaranteed coverage deficits prior to CP-SAT optimization.
  */
-import type { DomainSnapshot, BrandModel, ProcessModel } from '@/domain/types';
+import type { DomainSnapshot } from '@/domain/types';
 
 export interface BrandStructuralReport {
   brandId: string;
@@ -61,9 +61,7 @@ export function analyzeStructuralFeasibility(
     const allPrimaries = new Set<string>();
     const allBackups = new Set<string>();
 
-    let totalMinStaffRequired = 0;
     for (const proc of brandProcesses) {
-      totalMinStaffRequired += proc.defaultMinStaff || 1;
       const staff = processStaff.get(proc.id);
       if (staff) {
         staff.primaries.forEach((e) => allPrimaries.add(e));

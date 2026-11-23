@@ -4,7 +4,10 @@ Partitions the employee-process bipartite assignment graph into disjoint cluster
 Enables independent or parallel solving when pods/brands have zero shared floaters.
 """
 from typing import Dict, List, Set, Tuple
-from solver.app.schemas import SolveRequest
+try:
+    from .schemas import SolveRequest
+except ImportError:
+    from solver.app.schemas import SolveRequest
 
 
 def find_connected_components(request: SolveRequest) -> List[Tuple[Set[str], Set[str]]]:

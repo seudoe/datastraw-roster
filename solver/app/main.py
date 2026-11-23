@@ -7,8 +7,12 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel
 
-from solver.app.model import build_and_solve_cpsat
-from solver.app.schemas import RepairRequest, SolveRequest, SolveResponse
+try:
+    from .model import build_and_solve_cpsat
+    from .schemas import RepairRequest, SolveRequest, SolveResponse
+except ImportError:
+    from solver.app.model import build_and_solve_cpsat
+    from solver.app.schemas import RepairRequest, SolveRequest, SolveResponse
 
 app = FastAPI(
     title="RosterIQ CP-SAT Solver API",

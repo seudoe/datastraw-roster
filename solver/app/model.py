@@ -9,20 +9,36 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from ortools.sat.python import cp_model
 
-from solver.app.schemas import (
-    AssignmentRole,
-    BackupDutyOut,
-    CoverageGapOut,
-    DayStatus,
-    MetricsOut,
-    RepairRequest,
-    RosterEntryOut,
-    SolverMetaOut,
-    SolverStatus,
-    SolveRequest,
-    SolveResponse,
-)
-from solver.app.weights import get_weights
+try:
+    from .schemas import (
+        AssignmentRole,
+        BackupDutyOut,
+        CoverageGapOut,
+        DayStatus,
+        MetricsOut,
+        RepairRequest,
+        RosterEntryOut,
+        SolverMetaOut,
+        SolverStatus,
+        SolveRequest,
+        SolveResponse,
+    )
+    from .weights import get_weights
+except ImportError:
+    from solver.app.schemas import (
+        AssignmentRole,
+        BackupDutyOut,
+        CoverageGapOut,
+        DayStatus,
+        MetricsOut,
+        RepairRequest,
+        RosterEntryOut,
+        SolverMetaOut,
+        SolverStatus,
+        SolveRequest,
+        SolveResponse,
+    )
+    from solver.app.weights import get_weights
 
 
 def get_weekday_from_iso(date_str: str) -> int:

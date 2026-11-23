@@ -452,6 +452,7 @@ export function RosterGrid({
       {currentRoster ? (
         <RosterToolbar
           month={month}
+          rosterId={currentRoster.id}
           activeVersion={currentRoster.version}
           availableVersions={initialVersions}
           onSelectVersion={handleSelectVersion}

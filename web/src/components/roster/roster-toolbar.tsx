@@ -27,6 +27,7 @@ import {
   ShieldAlert,
   Zap,
   Layers,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { RosterViewMode } from './types';
@@ -34,6 +35,7 @@ import type { Conflict } from '@/domain/validator/types';
 
 interface RosterToolbarProps {
   month: string;
+  rosterId?: string;
   activeVersion: number;
   availableVersions: { version: number; status: string; createdAt: string }[];
   onSelectVersion: (version: number) => void;
@@ -49,6 +51,7 @@ interface RosterToolbarProps {
 
 export function RosterToolbar({
   month,
+  rosterId,
   activeVersion,
   availableVersions,
   onSelectVersion,
@@ -307,6 +310,22 @@ export function RosterToolbar({
             <Zap className="h-3.5 w-3.5 text-amber-500" />
             Ripple Simulator
           </Link>
+
+          {/* Export CSV Button */}
+          {rosterId && (
+            <a
+              href={`/api/rosters/${rosterId}/export`}
+              download={`roster-${month}-v${activeVersion}.csv`}
+              className={buttonVariants({
+                variant: 'outline',
+                size: 'sm',
+                className: 'h-8 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-100 gap-1.5',
+              })}
+            >
+              <Download className="h-3.5 w-3.5 text-slate-500" />
+              Export CSV
+            </a>
+          )}
         </div>
       </div>
 

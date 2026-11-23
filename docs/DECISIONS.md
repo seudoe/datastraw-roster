@@ -79,3 +79,61 @@ This document tracks key architectural choices, context, rejected alternatives, 
 - **Alternatives Rejected:**
   - *Full OAuth / Clerk / Auth.js:* Heavy external setup requiring third-party credentials that create friction for evaluators.
 - **Trade-off:** Not suitable for multi-tenant production enterprise without SSO, but ideal, honest, and frictionless for hiring review while keeping server authorization real.
+
+---
+
+## ADR-0009: Infeasibility Handling — Soft Slack Variables with Escalated Penalties
+- **Context:** When a 365-day brand has a single worker and 0 backups, meeting all coverage and labor constraints is mathematically impossible. A strict solver would return `INFEASIBLE`, producing zero output and halting operations.
+- **Decision:** Introduce non-negative integer slack variables $gap_{p, d}$ for every process on every day with an astronomical objective penalty ($W_{gap} = 100,000$).
+- **Alternatives Rejected:**
+  - *Hard Infeasibility Error:* Fails entire roster generation when a single brand cannot be staffed.
+  - *Violating Labor Rest Rules:* Forcing employees to work 7+ consecutive days without rest violates legal labor compliance.
+- **Trade-off:** Roster is always guaranteed to generate optimal schedules for coverable brands, while structurally uncoverable brands are clearly highlighted with explicit gap counts and grounded operational explanations.
+
+---
+
+## ADR-0010: Change Handling — The Ripple Engine with <5ms Pure TS Simulation
+- **Context:** When an employee requests leave or an emergency occurs, managers need instant visibility into downstream impacts before approving. Calling an external solver for every keystroke creates prohibitive latency (2–10s).
+- **Decision:** Build "The Ripple Engine" in pure TypeScript to compute direct coverage gaps, upstream/downstream domino cascades, and metric deltas entirely in-memory in under 5 milliseconds.
+- **Alternatives Rejected:**
+  - *Synchronous Solver Re-solve on Change Preview:* 2–5s network latency makes interactive exploration frustrating.
+  - *Simple Cell-Only Checks:* Fails to detect domino effects where covering one brand starves another brand.
+- **Trade-off:** Pure TS engine must maintain mirrored validation rules, but delivers sub-5ms instant interactive blast radius visualization.
+
+---
+
+## ADR-0011: Dual Remediation Strategy — Ranked Fast Heuristics + Minimal-Disruption Repair
+- **Context:** Once a coverage gap is detected, managers need actionable options. Some situations require quick manual swaps; others require complex multi-agent rescheduling.
+- **Decision:** Implement a dual-tier remediation pipeline: (1) 4 ranked 1-click deterministic quick-fixes (Existing Floater, Overtime, Cross-Pod Borrow, Peer Swap) generated in <10ms; and (2) An optimal CP-SAT minimal-disruption repair microservice (`/v1/repair`) that re-solves only the affected time window while penalizing shift movements with $\sum |x - x^{(0)}|$.
+- **Alternatives Rejected:**
+  - *Full Roster Regeneration on Leave:* Shuffles the entire month's schedule for 32 employees, destroying predictability and agent morale.
+  - *Heuristics Only:* Fails on complex multi-day combinatorial cascades.
+- **Trade-off:** Dual approach requires maintaining both the TS heuristic ranking and Python repair model, but combines instant 1-click remedies with mathematical optimality.
+
+---
+
+## ADR-0012: Governance & Quality Gate — Hard Publish Gate with Explicit Exception Acknowledgment
+- **Context:** Unfinished drafts or rosters with critical coverage gaps must never be accidentally published as the official operating plan.
+- **Decision:** Enforce a hard Publish Gate in `rosterService.ts`: publication is strictly blocked if any unacknowledged `ERROR` conflict exists (`COVERAGE_ZERO`, `WORKING_WHILE_ABSENT`, `MAX_CONSECUTIVE_EXCEEDED`, `UNAVAILABLE_WEEKDAY_WORKED`, `BACKUP_OVERLOAD`, `CASCADE_GAP`). Ops Managers must explicitly log an acknowledgment (`ConflictAck`) with a business justification to proceed.
+- **Alternatives Rejected:**
+  - *Soft Warnings:* Managers can easily overlook critical gaps and publish invalid schedules.
+  - *Absolute Publish Block without Override:* Paralyzes business operations on structurally uncoverable brands like `BR_03` where client contracts accept known weekend gaps.
+- **Trade-off:** Requires explicit operational overhead to acknowledge exceptions, but guarantees complete auditability and governance.
+
+---
+
+## ADR-0013: Multi-Perspective Grid Modeling — 5 Synchronized Views
+- **Context:** Different operational personas require different angles: Pod leads care about pod peers; account managers care about brand SLAs; ops executives care about company-wide fairness.
+- **Decision:** Model the roster grid with 5 first-class synchronized perspectives (Company, Pods, Brands, Processes, Employees) driven by a unified cell data model.
+- **Alternatives Rejected:**
+  - *Single Monolithic Grid:* Overwhelming cognitive load; difficult to inspect brand-level coverage rows.
+- **Trade-off:** Requires client-side grouping and aggregation logic, but provides tailor-made workspaces for every operational stakeholder.
+
+---
+
+## ADR-0014: Resilience Analytics — Bus Factor & Outage Stress Testing over Static Counts
+- **Context:** Standard staffing dashboards only show headcount. A pod with 8 agents may look safe, but if only 1 agent is certified on a critical brand, the organization has a hidden single point of failure (SPOF).
+- **Decision:** Compute deterministic Brand Bus Factors (number of unique certified agents), an Employee Criticality Index (0–100 blast radius score), and simulate 60 distinct pairwise outage combinations to evaluate real shock survival rates.
+- **Alternatives Rejected:**
+  - *Simple Staff-to-Brand Ratio:* Masks qualification bottlenecks (e.g. 10 CS agents cannot cover 1 specialized NDR process).
+- **Trade-off:** Extra analytical computation, but proactively alerts leadership to fragile single-resource accounts before an emergency occurs.

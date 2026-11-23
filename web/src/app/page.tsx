@@ -23,9 +23,9 @@ export default function HomePage() {
         <div className="flex items-center gap-3">
           <Badge className="bg-slate-900 text-white">Next.js 16 + React 19</Badge>
           <Badge className="bg-sky-600 text-white">Google OR-Tools CP-SAT</Badge>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/roster/2026-12">Open Demo</Link>
-          </Button>
+          <Link href="/roster/2026-12">
+            <Button size="sm" variant="outline">Open Demo</Button>
+          </Link>
         </div>
       </div>
 

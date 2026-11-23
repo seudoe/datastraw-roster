@@ -1,0 +1,306 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+enum ProcessType {
+  CS
+  ACC
+  NDR
+  RETENTION
+  OTHER
+}
+
+enum OperatingRule {
+  ALL_365
+  DAILY_EXCEPT_HOLIDAYS
+  SUN_AND_HOLIDAYS_OFF
+  CUSTOM
+}
+
+enum AssignmentRole {
+  PRIMARY
+  BACKUP
+  TEMPORARY
+}
+
+enum AbsenceType {
+  PLANNED_LEAVE
+  SICK
+  COMP_OFF
+  OTHER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DayStatus {
+  WORK
+  WEEKLY_OFF
+  HOLIDAY
+  LEAVE
+  COMP_OFF
+}
+
+enum EntrySource {
+  SOLVER
+  MANUAL
+  REPAIR
+}
+
+enum RosterStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  SUPERSEDED
+}
+
+model Pod {
+  id      String     @id @default(cuid())
+  name    String     @unique
+  leadId  String?    @unique
+  lead    Employee?  @relation("PodLead", fields: [leadId], references: [id], onDelete: SetNull)
+  members Employee[] @relation("PodMembers")
+}
+
+model Employee {
+  id                     String          @id @default(cuid())
+  code                   String          @unique
+  name                   String
+  email                  String?
+  podId                  String
+  pod                    Pod             @relation("PodMembers", fields: [podId], references: [id], onDelete: Restrict)
+  skills                 ProcessType[]
+  weeklyOffsPerWeek      Int             @default(1)
+  preferredOffWeekdays   Int[]           // 0=Sun..6=Sat (SOFT)
+  unavailableWeekdays    Int[]           // HARD blocked weekdays
+  maxConsecutiveWorkDays Int?            // null -> use global setting
+  maxBackupBrandsPerDay  Int?            // null -> use global setting
+  active                 Boolean         @default(true)
+  assignments            Assignment[]
+  absences               Absence[]
+  entries                RosterEntry[]
+  compOffCredits         CompOffCredit[]
+  backupDuties           BackupDuty[]
+  ledPod                 Pod?            @relation("PodLead")
+
+  @@index([podId])
+}
+
+model OperatingCalendar {
+  id               String        @id @default(cuid())
+  name             String        @unique
+  rule             OperatingRule
+  workingWeekdays  Int[]         // CUSTOM rule uses weekdays mask
+  observesHolidays Boolean       @default(true)
+  brands           Brand[]
+  processes        Process[]
+}
+
+model Brand {
+  id         String            @id @default(cuid())
+  code       String            @unique
+  name       String
+  calendarId String
+  calendar   OperatingCalendar @relation(fields: [calendarId], references: [id], onDelete: Restrict)
+  priority   Int               @default(2) // 1 low..3 high -> gap penalty weight
+  active     Boolean           @default(true)
+  processes  Process[]
+  holidays   Holiday[]
+
+  @@index([calendarId])
+}
+
+model Process {
+  id              String             @id @default(cuid())
+  brandId         String
+  brand           Brand              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  type            ProcessType
+  name            String
+  calendarId      String?            // null -> inherit brand calendar
+  calendar        OperatingCalendar? @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  defaultMinStaff Int                @default(1)
+  rules           CoverageRule[]
+  assignments     Assignment[]
+  backupDuties    BackupDuty[]
+
+  @@index([brandId])
+  @@index([calendarId])
+}
+
+model CoverageRule {
+  id        String    @id @default(cuid())
+  processId String
+  process   Process   @relation(fields: [processId], references: [id], onDelete: Cascade)
+  weekday   Int?      // 0=Sun..6=Sat
+  date      DateTime? @db.Date // Specific calendar date
+  minStaff  Int
+  note      String?
+
+  @@index([processId, weekday])
+  @@index([processId, date])
+}
+
+model Holiday {
+  id      String   @id @default(cuid())
+  date    DateTime @db.Date
+  name    String
+  brandId String?  // null = company-wide; set = brand-specific
+  brand   Brand?   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([date, brandId])
+  @@index([date])
+}
+
+model Assignment {
+  id            String         @id @default(cuid())
+  employeeId    String
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  processId     String
+  process       Process        @relation(fields: [processId], references: [id], onDelete: Cascade)
+  role          AssignmentRole @default(PRIMARY)
+  allocationPct Int            @default(100)
+  validFrom     DateTime?      @db.Date
+  validTo       DateTime?      @db.Date
+
+  @@unique([employeeId, processId])
+  @@index([employeeId])
+  @@index([processId])
+}
+
+model Absence {
+  id               String          @id @default(cuid())
+  employeeId       String
+  employee         Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type             AbsenceType
+  startDate        DateTime        @db.Date
+  endDate          DateTime        @db.Date
+  status           RequestStatus   @default(PENDING)
+  reason           String?
+  createdAt        DateTime        @default(now())
+  redeemedCompOffs CompOffCredit[]
+
+  @@index([employeeId, status])
+  @@index([startDate, endDate])
+}
+
+model CompOffCredit {
+  id                  String    @id @default(cuid())
+  employeeId          String
+  employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  earnedOn            DateTime  @db.Date
+  expiresOn           DateTime? @db.Date
+  redeemedByAbsenceId String?
+  redeemedBy          Absence?  @relation(fields: [redeemedByAbsenceId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+}
+
+model Roster {
+  id            String         @id @default(cuid())
+  month         String         // "YYYY-MM", e.g. "2026-12"
+  version       Int            @default(1)
+  status        RosterStatus   @default(DRAFT)
+  profile       String         // e.g. "BALANCED", "COVERAGE_FIRST"
+  parentId      String?
+  solverMeta    Json
+  createdBy     String
+  createdAt     DateTime       @default(now())
+  entries       RosterEntry[]
+  backupDuties  BackupDuty[]
+  conflictAcks  ConflictAck[]
+  notifications Notification[]
+
+  @@unique([month, version])
+  @@index([month, status])
+}
+
+model RosterEntry {
+  id         String      @id @default(cuid())
+  rosterId   String
+  roster     Roster      @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime    @db.Date
+  status     DayStatus
+  locked     Boolean     @default(false)
+  source     EntrySource @default(SOLVER)
+  note       String?
+
+  @@unique([rosterId, employeeId, date])
+  @@index([rosterId, date])
+  @@index([employeeId, date])
+}
+
+model BackupDuty {
+  id         String   @id @default(cuid())
+  rosterId   String
+  roster     Roster   @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  processId  String
+  process    Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+
+  @@unique([rosterId, employeeId, processId, date])
+  @@index([rosterId, date])
+}
+
+model ConflictAck {
+  id          String   @id @default(cuid())
+  rosterId    String
+  roster      Roster   @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+  fingerprint String
+  reason      String
+  ackBy       String
+  at          DateTime @default(now())
+
+  @@index([rosterId])
+  @@index([fingerprint])
+}
+
+model Scenario {
+  id        String   @id @default(cuid())
+  name      String
+  changeSet Json
+  result    Json
+  createdAt DateTime @default(now())
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  at         DateTime @default(now())
+  actor      String
+  action     String
+  entityType String
+  entityId   String
+  payload    Json
+
+  @@index([at])
+  @@index([entityType, entityId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  rosterId  String?
+  roster    Roster?   @relation(fields: [rosterId], references: [id], onDelete: SetNull)
+  audience  String
+  message   String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([audience, readAt])
+  @@index([rosterId])
+}
+
+model Setting {
+  key   String @id
+  value Json
+}

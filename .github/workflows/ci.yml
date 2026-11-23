@@ -51,7 +51,7 @@ jobs:
       - name: Setup Database & Seed
         run: |
           cd web
-          npx prisma db push --skip-generate
+          npx prisma db push --accept-data-loss
           npm run db:seed
 
       - name: Typecheck

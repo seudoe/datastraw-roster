@@ -3,11 +3,11 @@ import { listRosterVersions } from '@/server/services/rosterService';
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ month: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { month } = await params;
-    const versions = await listRosterVersions(month);
+    const { id } = await params;
+    const versions = await listRosterVersions(id);
     return NextResponse.json({ versions });
   } catch (error: unknown) {
     const err = error as Error;

@@ -82,6 +82,36 @@ export function ConflictSheet({
     }
   };
 
+  const handleAcknowledgeAll = async () => {
+    const unacked = conflicts.filter((c) => !c.acknowledged);
+    if (unacked.length === 0) return;
+
+    const reason = prompt(
+      `Acknowledge all ${unacked.length} unresolved operational conflict(s) with justification:`,
+      'Approved operational exception for structural brand coverage gaps'
+    );
+    if (!reason || reason.trim().length < 3) return;
+
+    setIsSubmitting(true);
+    try {
+      const fingerprints = unacked.map((c) => c.id);
+      const res = await fetch(`/api/rosters/${rosterId}/conflicts/ack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fingerprints, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to batch acknowledge');
+
+      toast.success(`Acknowledged all ${unacked.length} exceptions successfully!`);
+      onAcknowledgeSuccess();
+    } catch (e: unknown) {
+      toast.error((e as Error).message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleExplain = async (conflict: Conflict) => {
     setExplainingId(conflict.id);
     try {
@@ -161,6 +191,18 @@ export function ConflictSheet({
           >
             Acknowledged ({ackedCount})
           </Button>
+
+          {errorCount > 0 && (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={handleAcknowledgeAll}
+              disabled={isSubmitting}
+              className="ml-auto text-xs bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 font-semibold"
+            >
+              Sign-off All ({errorCount})
+            </Button>
+          )}
         </div>
 
         {/* Conflict List */}

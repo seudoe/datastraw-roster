@@ -283,8 +283,11 @@ export async function generateRoster(
     },
   });
 
+  // Fetch full populated roster with entries and backupDuties
+  const fullRoster = await getRoster(month, nextVersion);
+
   return {
-    roster: createdRoster,
+    roster: fullRoster || createdRoster,
     solveResponse,
   };
 }

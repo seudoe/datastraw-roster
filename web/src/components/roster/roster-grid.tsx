@@ -86,6 +86,17 @@ export function RosterGrid({
   const [conflicts, setConflicts] = useState<Conflict[]>(initialConflicts);
   const [conflictSheetOpen, setConflictSheetOpen] = useState(false);
 
+  // Sync state when initial props update
+  React.useEffect(() => {
+    if (initialRoster) {
+      setCurrentRoster(initialRoster);
+    }
+  }, [initialRoster]);
+
+  React.useEffect(() => {
+    setConflicts(initialConflicts);
+  }, [initialConflicts]);
+
   // Month days array (YYYY-MM-DD)
   const days = useMemo(() => getDaysInMonth(month), [month]);
 
@@ -310,6 +321,31 @@ export function RosterGrid({
     await refreshValidation(currentRoster.id);
   };
 
+  // Helper to format roster payload dates safely
+  const formatRosterPayload = (rawRoster: any): RosterDataPayload => ({
+    id: rawRoster.id,
+    month: rawRoster.month,
+    version: rawRoster.version,
+    status: rawRoster.status,
+    profile: rawRoster.profile,
+    createdBy: rawRoster.createdBy,
+    createdAt: typeof rawRoster.createdAt === 'string' ? rawRoster.createdAt : new Date(rawRoster.createdAt).toISOString(),
+    entries: (rawRoster.entries || []).map((e: any) => ({
+      employeeId: e.employeeId,
+      date: typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0],
+      status: e.status,
+      locked: e.locked,
+      source: e.source,
+      note: e.note,
+    })),
+    backupDuties: (rawRoster.backupDuties || []).map((b: any) => ({
+      employeeId: b.employeeId,
+      processId: b.processId,
+      date: typeof b.date === 'string' ? b.date.split('T')[0] : new Date(b.date).toISOString().split('T')[0],
+    })),
+    conflictAcks: rawRoster.conflictAcks || [],
+  });
+
   // Select a different version
   const handleSelectVersion = (version: number) => {
     startTransition(async () => {
@@ -320,10 +356,13 @@ export function RosterGrid({
           return;
         }
         const data = await res.json();
-        setCurrentRoster(data.roster);
-        toast.info(`Switched to Roster Version ${version}`);
-        if (data.roster?.id) {
-          await refreshValidation(data.roster.id);
+        if (data.roster) {
+          const formatted = formatRosterPayload(data.roster);
+          setCurrentRoster(formatted);
+          toast.info(`Switched to Roster Version ${version}`);
+          if (formatted.id) {
+            await refreshValidation(formatted.id);
+          }
         }
       } catch (err) {
         toast.error((err as Error).message);
@@ -349,7 +388,13 @@ export function RosterGrid({
     }
 
     const data = await res.json();
-    setCurrentRoster(data.roster);
+    if (data.roster) {
+      const formatted = formatRosterPayload(data.roster);
+      setCurrentRoster(formatted);
+      if (formatted.id) {
+        await refreshValidation(formatted.id);
+      }
+    }
     router.refresh();
   };
 

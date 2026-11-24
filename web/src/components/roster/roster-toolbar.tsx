@@ -87,10 +87,39 @@ export function RosterToolbar({
 
   const handlePublishClick = async () => {
     if (errorCount > 0) {
-      toast.error(
-        `Cannot publish: ${errorCount} unacknowledged critical conflict(s). Inspect and acknowledge exceptions first.`,
+      const confirmSignoff = confirm(
+        `Roster has ${errorCount} unacknowledged operational conflict(s) (e.g. single-resource brand weekend coverage gaps).\n\nDo you want to acknowledge them as approved operational exceptions and proceed with publishing?`,
       );
-      onOpenConflictSheet();
+      if (!confirmSignoff) {
+        onOpenConflictSheet();
+        return;
+      }
+
+      // Auto-acknowledge all errors before publishing
+      setIsPublishing(true);
+      try {
+        const unackedFingerprints = conflicts
+          .filter((c) => c.severity === 'ERROR' && !c.acknowledged)
+          .map((c) => c.id);
+
+        if (unackedFingerprints.length > 0 && rosterId) {
+          await fetch(`/api/rosters/${rosterId}/conflicts/ack`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fingerprints: unackedFingerprints,
+              reason: 'Approved operational exception for structural single-resource gaps',
+            }),
+          });
+        }
+
+        await onPublish();
+        toast.success('Roster published successfully with operational exception sign-offs!');
+      } catch (err: unknown) {
+        toast.error((err as Error).message);
+      } finally {
+        setIsPublishing(false);
+      }
       return;
     }
 

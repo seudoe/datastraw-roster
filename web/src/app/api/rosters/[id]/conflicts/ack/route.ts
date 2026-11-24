@@ -5,8 +5,11 @@ import { getCurrentRole, requireNotViewer } from '@/server/auth';
 import { logAudit } from '@/server/audit';
 
 const ackSchema = z.object({
-  fingerprint: z.string().min(1, 'Fingerprint is required'),
+  fingerprint: z.string().optional(),
+  fingerprints: z.array(z.string()).optional(),
   reason: z.string().min(3, 'Acknowledgment explanation must be at least 3 characters'),
+}).refine((data) => data.fingerprint || (data.fingerprints && data.fingerprints.length > 0), {
+  message: 'Either fingerprint or fingerprints array is required',
 });
 
 export async function POST(
@@ -27,7 +30,7 @@ export async function POST(
       );
     }
 
-    const { fingerprint, reason } = parsed.data;
+    const { fingerprint, fingerprints, reason } = parsed.data;
 
     // Check roster exists
     const roster = await db.roster.findUnique({
@@ -38,13 +41,20 @@ export async function POST(
       return NextResponse.json({ error: 'Roster not found' }, { status: 404 });
     }
 
-    const ack = await db.conflictAck.create({
-      data: {
-        rosterId: id,
-        fingerprint,
-        reason,
-        ackBy: role,
-      },
+    const allFingerprints = fingerprints && fingerprints.length > 0 
+      ? fingerprints 
+      : fingerprint ? [fingerprint] : [];
+
+    const ackItems = allFingerprints.map((fp) => ({
+      rosterId: id,
+      fingerprint: fp,
+      reason,
+      ackBy: role,
+    }));
+
+    await db.conflictAck.createMany({
+      data: ackItems,
+      skipDuplicates: true,
     });
 
     await logAudit({
@@ -53,12 +63,13 @@ export async function POST(
       entityType: 'Roster',
       entityId: id,
       payload: {
-        fingerprint,
+        count: allFingerprints.length,
+        fingerprints: allFingerprints.slice(0, 5),
         reason,
       },
     });
 
-    return NextResponse.json({ success: true, ack });
+    return NextResponse.json({ success: true, count: allFingerprints.length });
   } catch (error: unknown) {
     const err = error as Error;
     return NextResponse.json(

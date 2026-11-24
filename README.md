@@ -20,7 +20,7 @@ RosterIQ is an enterprise-grade roster planning platform built for high-stakes D
 - **Live Deployed Web Application:** `https://roster-iq-datastraw.vercel.app` *(Update with your Vercel URL)*
 - **Stateless Python Solver Health:** `https://roster-iq-solver.onrender.com/v1/health` *(Update with your Render URL)*
 - **Demo Walkthrough Video:** `https://www.loom.com/share/roster-iq-demo` *(Update with your Loom URL)*
-- **Documentation Pack:** [Approach Note](docs/APPROACH_NOTE.md) · [Mathematical Scheduling Spec](docs/SCHEDULING.md) · [Demo Script](docs/DEMO_SCRIPT.md) · [Interview Defense](docs/INTERVIEW_PREP.md) · [Architecture Decision Records (14 ADRs)](docs/DECISIONS.md)
+- **Documentation Pack:** [Approach Note](docs/APPROACH_NOTE.md) · [Mathematical Scheduling Spec](docs/SCHEDULING.md) · [Architecture Decision Records (14 ADRs)](docs/DECISIONS.md)
 
 ---
 
